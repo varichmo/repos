@@ -1,0 +1,215 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+
+	"parameters": {
+		"alias":								{"type":"string",	"defaultValue":"[parameters('alias')]"},
+		"subscriptionName":					{"type":"string",	"defaultValue":"[parameters('subscriptionName')]"},
+		"resourceGroupName":					{"type":"string",	"defaultValue":"[parameters('resourceGroupName')]"},
+		"location":							{"type":"string",	"defaultValue":"[parameters('location')]"},
+
+		"virtualMachineName":				{"type":"string",	"defaultValue":"[parameters('virtualMachineName')]"},
+		"virtualMachineSize":				{"type":"string",	"defaultValue":"[parameters('virtualMachineSize')]"},
+		"virtualMachineDiskType":			{"type":"string",	"defaultValue":"[parameters('virtualMachineDiskType')]"},
+
+		"adminUsername":						{"type":"string",	"defaultValue":"[parameters('adminUserName')]"},
+		"adminPassword":						{"type":"string",	"defaultValue":"[parameters('adminPassword')]"},
+
+		"virtualNetworkName":				{"type":"string",	"defaultValue":"[parameters('virtualNetworkName')]"},
+		"networkInterfaceName":				{"type":"string",	"defaultValue":"[parameters('networkInterfaceName')]"},
+		"networkSecurityGroupName":			{"type":"string",	"defaultValue":"[parameters('networkSecurityGroupName')]"},
+		"subnetName":						{"type":"string",	"defaultValue":"[parameters('subnetName')]"},
+
+		"sqlConnectivityType":				{"type":"string",	"defaultValue":"[parameters('sqlConnectivityType')]"},
+		"sqlPortNumber":						{"type":"int",		"defaultValue":"[parameters('sqlPortNumber')]"},
+		"sqlStorageDisksCount":				{"type":"int",		"defaultValue":"[parameters('sqlStorageDiskCount')]"},
+		"sqlStorageWorkloadType":			{"type":"string",	"defaultValue":"[parameters('sqlStorageWorkloadType')]"},
+		"sqlStorageDisksConfigurationType":	{"type":"string",	"defaultValue":"[parameters('sqlStorageDisksConfigurationType')]"},
+		"sqlStorageDisksSize":				{"type":"int",		"defaultValue":"[parameters('sqlStorageDisksSize')]"},
+		"sqlStorageStartingDeviceId":		{"type":"int",		"defaultValue":"[parameters('sqlStorageStartingDeviceId')]"},
+		"sqlStorageDeploymentToken":			{"type":"int",		"defaultValue":"[parameters('sqlStorageDeploymentToken')]"},
+
+		"rServicesEnabled":					{"type":"string",	"defaultValue":"[parameters('rServicesEnabled')]"},
+	},
+
+	"variables": {
+		"vnetId":		"[resourceId(parameters('resourceGroupName'),'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+		"subnetRef":		"[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]"
+	},
+
+	"resources": [
+		{
+            "name": "[parameters('virtualMachineName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2018-06-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]"
+            ],
+            "properties": {
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachineName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]",
+                    "windowsConfiguration": {
+                        "provisionVmAgent": "true"
+                    }
+                },
+                "hardwareProfile": {
+                    "vmSize": "[parameters('virtualMachineSize')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftSQLServer",
+                        "offer": "SQL2017-WS2016",
+                        "sku": "Standard",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "[parameters('virtualMachineDiskType')]"
+                        }
+                    },
+                    "dataDisks": [
+                        {
+                            "createOption": "empty",
+                            "lun": 0,
+                            "diskSizeGB": "[parameters('sqlStorageDisksSize')]",
+                            "caching": "ReadOnly",
+                            "managedDisk": {
+                                "storageAccountType": "[parameters('virtualMachineDiskType')]"
+                            }
+                        }
+                    ]
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaceName'))]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-06-15",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('virtualMachineName'), '/SqlIaasExtension')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]",
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
+            ],
+            "properties": {
+                "type": "SqlIaaSAgent",
+                "publisher": "Microsoft.SqlServer.Management",
+                "typeHandlerVersion": "2.0",
+                "autoUpgradeMinorVersion": "true",
+                "settings": {
+                    "AutoTelemetrySettings": {
+                        "Region": "[parameters('location')]"
+                    },
+                    "AutoPatchingSettings": {
+                        "PatchCategory": "WindowsMandatoryUpdates",
+                        "Enable": false,
+                        "DayOfWeek": "Sunday",
+                        "MaintenanceWindowStartingHour": "2",
+                        "MaintenanceWindowDuration": "60"
+                    },
+                    "KeyVaultCredentialSettings": {
+                        "Enable": false,
+                        "CredentialName": ""
+                    },
+                    "ServerConfigurationsManagementSettings": {
+                        "SQLConnectivityUpdateSettings": {
+                            "ConnectivityType": "[parameters('sqlConnectivityType')]",
+                            "Port": "[parameters('sqlPortNumber')]"
+                        },
+                        "SQLWorkloadTypeUpdateSettings": {
+                            "SQLWorkloadType": "[parameters('sqlStorageWorkloadType')]"
+                        },
+                        "SQLStorageUpdateSettings": {
+                            "DiskCount": "[parameters('sqlStorageDisksCount')]",
+                            "NumberOfColumns": "[parameters('sqlStorageDisksCount')]",
+                            "StartingDeviceID": "[parameters('sqlStorageStartingDeviceId')]",
+                            "DiskConfigurationType": "[parameters('sqlStorageDisksConfigurationType')]"
+                        },
+                        "AdditionalFeaturesServerConfigurations": {
+                            "IsRServicesEnabled": "[parameters('rServicesEnabled')]"
+                        }
+                    }
+                },
+                "protectedSettings": {
+                    "SQLAuthUpdateUserName": "[parameters('adminUsername')]",
+                    "SQLAuthUpdatePassword": "[parameters('adminPassword')]"
+                }
+            }
+        },
+        {
+            "name": "[parameters('networkInterfaceName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2018-04-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkSecurityGroups/', parameters('networkSecurityGroupName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic"
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId(parameters('resourceGroupName'), 'Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]"
+                }
+            }
+        },
+        {
+            "name": "[parameters('networkSecurityGroupName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2018-08-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "MS-SQL",
+                        "properties": {
+                            "priority": 100,
+                            "protocol": "TCP",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "sourceApplicationSecurityGroups": [],
+                            "destinationApplicationSecurityGroups": [],
+                            "sourceAddressPrefix": "*",
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*",
+                            "destinationPortRange": "[parameters('sqlPortNumber')]"
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+
+    "outputs": {
+        "virtualMachineName": {
+            "type": "string",
+            "value": "[parameters('virtualMachineName')]"
+        },
+        "networkInterfaceName": {
+            "type": "string",
+            "value": "[parameters('networkInterfaceName')]"
+        },
+        "networkSecurityGroupName": {
+            "type": "string",
+            "value": "[parameters('networkSecurityGroupName')]"
+        },
+    }
+}

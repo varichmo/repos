@@ -1,0 +1,39 @@
+﻿@using ContosoShuttle.Data.Models
+@model IEnumerable<ContosoShuttle.Data.Models.Schedule>
+
+<div class="ads-container">
+    <div class="container">
+        <h1>@ViewBag.Title</h1>
+        @if (ViewBag.ImageUrl != null)
+        {
+            <img src="@ViewBag.ImageUrl" alt="@ViewBag.Title" class="destination-image image-border" />
+        }
+
+    </div>
+        <div class="bottom-container">
+            <div class="ads-table">
+                <div class="header">
+                    <div class="container">
+                        <ul class="row">
+                            <li class="departure-time">@Html.DisplayNameFor(model => model.DepartureTime).ToHtmlString()</li>
+                            <li class="stand">@Html.DisplayNameFor(model => model.Stand).ToHtmlString()</li>
+                            <li class="travel-time">@Html.DisplayNameFor(model => model.TravelTime).ToHtmlString()</li>
+                            <li class="destination">@Html.DisplayNameFor(model => model.Destination).ToHtmlString()</li>
+                        </ul>
+                    </div>
+                </div>
+
+                @foreach (Schedule item in Model)
+                {
+                    <div class="ads-row">
+                        <ul class="container">
+                            <li class="departure-time">@Html.DisplayFor(modelItem => item.DepartureTime)</li>
+                            <li class="stand">@Html.DisplayFor(modelItem => item.Stand)</li>
+                            <li class="travel-time">@Html.DisplayFor(modelItem => item.TravelTime)</li>
+                            <li class="destination">@Html.DisplayFor(modelItem => item.Destination)</li>
+                        </ul>
+                    </div>
+                }   
+            </div>
+        </div>
+    </div>

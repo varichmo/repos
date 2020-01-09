@@ -1,0 +1,216 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+
+	"parameters": {
+		"alias":										{"type":"string",	"defaultValue":"[parameters('alias')]"},
+		"subscriptionName":							{"type":"string",	"defaultValue":"[parameters('subscriptionName')]"},
+		"resourceGroupName":							{"type":"string",	"defaultValue":"[parameters('resourceGroupName')]"},
+		"location":									{"type":"string",	"defaultValue":"[parameters('location')]"},
+
+		"virtualMachineName":						{"type":"string",	"defaultValue":"[parameters('virtualMachineName')]"},
+		"virtualMachineSize":						{"type":"string",	"defaultValue":"[parameters('virtualMachineSize')]"},
+		"virtualMachineDiskType":					{"type":"string",	"defaultValue":"[parameters('virtualMachineDiskType')]"},
+
+		"adminUsername":								{"type":"string",	"defaultValue":"[parameters('adminUserName')]"},
+		"adminPassword":								{"type":"string",	"defaultValue":"[parameters('adminPassword')]"},
+
+		"virtualNetworkName":						{"type":"string",	"defaultValue":"[parameters('virtualNetworkName')]"},
+		"networkInterfaceName":						{"type":"string",	"defaultValue":"[parameters('networkInterfaceName')]"},
+		"networkSecurityGroupName":					{"type":"string",	"defaultValue":"[parameters('networkSecurityGroupName')]"},
+		"subnetName":								{"type":"string",	"defaultValue":"[parameters('subnetName')]"},
+
+		"sqlConnectivityType":						{"type":"string",	"defaultValue":"[parameters('sqlConnectivityType')]"},
+		"sqlPortNumber":								{"type":"int",		"defaultValue":"[parameters('sqlPortNumber')]"},
+		"sqlStorageDisksCount":						{"type":"int",		"defaultValue":"[parameters('sqlStorageDiskCount')]"},
+		"sqlStorageWorkloadType":					{"type":"string",	"defaultValue":"[parameters('sqlStorageWorkloadType')]"},
+		"sqlStorageDisksConfigurationType":			{"type":"string",	"defaultValue":"[parameters('sqlStorageDisksConfigurationType')]"},
+		"sqlStorageDisksSize":						{"type":"int",		"defaultValue":"[parameters('sqlStorageDisksSize')]"},
+		"sqlStorageStartingDeviceId":				{"type":"int",		"defaultValue":"[parameters('sqlStorageStartingDeviceId')]"},
+		"sqlStorageDeploymentToken":					{"type":"int",		"defaultValue":"[parameters('sqlStorageDeploymentToken')]"},
+
+		"rServicesEnabled":							{"type":"string",	"defaultValue":"[parameters('rServicesEnabled')]"},
+
+        "networkSecurityGroupRules":					{"type": "array"},
+        "virtualNetworkId":							{"type": "string"},
+        "publicIpAddressName":						{"type": "string"},
+        "publicIpAddressType":						{"type": "string"},
+        "publicIpAddressSku":						{"type": "string"},
+        "virtualMachineRG":							{"type": "string"},
+        "osDiskType":								{"type": "string"},
+        "availabilitySetName":						{"type": "string"},
+        "availabilitySetPlatformFaultDomainCount":	{"type": "int"},
+        "availabilitySetPlatformUpdateDomainCount":	{"type": "int"}
+},
+
+	"variables": {
+		"vnetId":		"[resourceId(parameters('resourceGroupName'),'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+		"subnetRef":		"[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]",
+        "nsgId":			"[resourceId(resourceGroup().name, 'Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]",
+    },
+
+	"resources": [
+        {
+            "name": "[parameters('networkInterfaceName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2018-04-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkSecurityGroups/', parameters('networkSecurityGroupName'))]",
+                "[concat('Microsoft.Network/publicIpAddresses/', parameters('publicIpAddressName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIpAddress": {
+                                "id": "[resourceId(resourceGroup().name, 'Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
+                            }
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[variables('nsgId')]"
+                }
+            },
+            "tags": {}
+        },
+        {
+            "name": "[parameters('networkSecurityGroupName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2018-08-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "securityRules": "[parameters('networkSecurityGroupRules')]"
+            },
+            "tags": {}
+        },
+        {
+            "name": "[parameters('publicIpAddressName')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2018-08-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "publicIpAllocationMethod": "[parameters('publicIpAddressType')]"
+            },
+            "sku": {
+                "name": "[parameters('publicIpAddressSku')]"
+            },
+            "tags": {}
+        },
+        {
+            "name": "[parameters('virtualMachineName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2018-06-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]",
+                "[concat('Microsoft.Compute/availabilitySets/', parameters('availabilitySetName'))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('virtualMachineSize')]"
+                },
+                "storageProfile": {
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "[parameters('osDiskType')]"
+                        }
+                    },
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaceName'))]"
+                        }
+                    ]
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachineName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]",
+                    "windowsConfiguration": {
+                        "enableAutomaticUpdates": true,
+                        "provisionVmAgent": true
+                    }
+                },
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', parameters('availabilitySetName'))]"
+                }
+            },
+            "tags": {}
+        },
+        {
+            "name": "[parameters('availabilitySetName')]",
+            "type": "Microsoft.Compute/availabilitySets",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[parameters('location')]",
+            "properties": {
+                "platformFaultDomainCount": "[parameters('availabilitySetPlatformFaultDomainCount')]",
+                "platformUpdateDomainCount": "[parameters('availabilitySetPlatformUpdateDomainCount')]"
+            },
+            "sku": {
+                "name": "Aligned"
+            },
+            "tags": {}
+        },
+        {
+            "name": "Microsoft.DSC-20181210161237",
+            "apiVersion": "2015-01-01",
+            "type": "Microsoft.Resources/deployments",
+            "properties": {
+                "mode": "incremental",
+                "templateLink": {
+                    "uri": "https://gallery.azure.com/artifact/20161101/Microsoft.DSC-arm.2.0.8/Artifacts/MainTemplate.json"
+                },
+                "parameters": {
+                    "vmName": {
+                        "value": "dasvab-web-vm"
+                    },
+                    "location": {
+                        "value": "westus2"
+                    },
+                    "modulesUrl": {
+                        "value": "https://iaasv2tempstoragesn.blob.core.windows.net/vmextensionstemporary-10037ffeab136189-20181211001035974/dsc-package.zip?sv=2017-04-17&sr=c&sig=PhSKtveXB7ebAQ6KDAlRCRmzyhgcDQtWjb0YSLPrziE%3D&se=2018-12-12T00%3A10%3A36Z&sp=rw"
+                    },
+                    "configurationFunction": {
+                        "value": "web-dsc-config.ps1\\Main"
+                    },
+                    "wmfVersion": {
+                        "value": "latest"
+                    },
+                    "privacy": {
+                        "value": "Enable"
+                    },
+                    "version": {
+                        "value": "2.7"
+                    },
+                    "autoUpdate": {
+                        "value": true
+                    }
+                }
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', parameters('virtualMachineName'))]"
+            ]
+        }
+    ],
+    "outputs": {
+        "adminUsername": {
+            "type": "string",
+            "value": "[parameters('adminUsername')]"
+        }
+    }
+}

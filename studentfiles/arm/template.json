@@ -1,0 +1,109 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2014-04-01-preview/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+
+  "parameters": {
+    "location": { "type": "string" },
+    "userPrefix": { "type": "string" },
+    "adminEmailAddr": { "type": "string" },
+    "adminUserSID": { "type": "string" },
+    "tenantID": { "type": "string" }
+  },
+
+  "variables": {
+    "sqlDatabaseName": "[concat(parameters('userPrefix'), '-paas-sqldb')]",
+    "sqlServerName": "[concat(parameters('userPrefix'), '-paas-sqlsrv')]",
+    "sqlServerLogin": "demouser",
+    "sqlServerPassword": "demo@Pass123",
+    "trafficManagerName": "[concat(parameters('userPrefix'), '-trafficmgr')]",
+    "webAppName": "[concat(parameters('userPrefix'), '-webapp')]"
+  },
+
+  "resources": [
+    {
+      "type": "Microsoft.Sql/servers",
+      "name": "[variables('sqlServerName')]",
+      "apiVersion": "2015-05-01-preview",
+      "location": "[parameters('location')]",
+      "properties": {
+        "administratorLogin": "[variables('sqlServerLogin')]",
+        "administratorLoginPassword": "[variables('sqlServerPassword')]",
+        "version": "12.0"
+      },
+      "dependsOn": [],
+      "resources": [
+        {
+          "type": "firewallRules",
+          "name": "AllowAllWindowsAzureIps",
+          "apiVersion": "2014-04-01",
+          "location": "[parameters('location')]",
+          "properties": {
+            "startIpAddress": "0.0.0.0",
+            "endIpAddress": "0.0.0.0"
+          },
+          "dependsOn": [
+            "[variables('sqlServerName')]"
+          ]
+        },
+        {
+          "type": "administrators",
+          "name": "activeDirectory",
+          "apiVersion": "2014-04-01-preview",
+          "location": "[parameters('location')]",
+          "properties": {
+            "administratorType": "ActiveDirectory",
+            "login": "[parameters('adminEmailAddr')]",
+            "sid": "[parameters('adminUserSID')]",
+            "tenantId": "[parameters('tenantID')]"
+          },
+          "dependsOn": [
+            "[variables('sqlServerName')]"
+          ]
+        },
+        {
+          "type": "databases",
+          "name": "[variables('sqlDatabaseName')]",
+          "apiVersion": "2015-05-01-preview",
+          "location": "[parameters('location')]",
+          "properties": {
+            "edition": "Standard",
+            "collation": "SQL_Latin1_General_CP1_CI_AS"
+          },
+          "dependsOn": [
+            "[variables('sqlServerName')]"
+          ]
+        }
+      ]
+    },
+
+    {
+      "type": "Microsoft.Network/trafficManagerProfiles",
+      "name": "[variables('trafficManagerName')]",
+      "apiVersion": "2017-05-01",
+      "location": "global",
+      "properties": {
+        "profileStatus": "Enabled",
+        "trafficRoutingMethod": "Weighted",
+        "dnsConfig": {
+          "relativeName": "[variables('trafficManagerName')]",
+          "ttl": 30
+        },
+        "monitorConfig": {
+          "protocol": "HTTPS",
+          "port": 443,
+          "path": "/"
+        },
+        "endpoints": [
+          {
+            "name": "[concat('Web App (', variables('webAppName'), ')')]",
+            "type": "Microsoft.Network/trafficManagerProfiles/azureEndpoints",
+            "properties": {
+              "targetResourceId": "[resourceId('Microsoft.Web/sites', variables('webAppName'))]",
+              "weight": 1
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

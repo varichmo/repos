@@ -1,0 +1,132 @@
+using System.Data.SqlClient;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.IO;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Host;
+using Microsoft.Extensions.Logging;
+using Microsoft.ApplicationInsights;
+using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.ApplicationInsights.Extensibility;
+
+namespace <alias>FunctionApp
+{
+    public static class <alias>FunctionApp
+    {
+        private static string key = TelemetryConfiguration.Active.InstrumentationKey = 
+            System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY");
+
+        private static TelemetryClient telemetryClient =
+            new TelemetryClient() { InstrumentationKey = key };
+
+        [FunctionName("Thumbnail")]
+        public static async System.Threading.Tasks.Task RunAsync(
+            [BlobTrigger("images/{name}", Connection = "")]CloudBlockBlob imageBlob,
+            [Blob("thumbs/{name}", FileAccess.ReadWrite)]CloudBlockBlob thumbnailBlob,
+            string name, 
+            TraceWriter log)
+        {
+            {
+
+                using (var input = imageBlob.OpenRead())
+                using (var output = thumbnailBlob.OpenWrite())
+                {
+                    ImageFormat imageFormat;
+                    switch (imageBlob.Properties.ContentType)
+                    {
+                        case "image/jpeg":
+                            {
+                                imageFormat = ImageFormat.Jpeg;
+                                break;
+                            }
+                        case "image/png":
+                            {
+                                imageFormat = ImageFormat.Png;
+                                break;
+                            }
+                        case "image/gif":
+                            {
+                                imageFormat = ImageFormat.Gif;
+                                break;
+                            }
+                        default:
+                            {
+                                imageFormat = ImageFormat.Jpeg;
+                                break;
+                            }
+                    }
+
+                    ConvertImageToThumbnail(input, output, imageFormat, log);
+
+                    thumbnailBlob.Properties.ContentType = imageBlob.Properties.ContentType;
+                }
+                var connectionString = System.Environment.GetEnvironmentVariable("ContosoShuttle");
+
+
+                using (var sqlConnection = new SqlConnection(connectionString))
+                {
+                    sqlConnection.Open();
+
+                    var text = "UPDATE [dbo].[DestinationImages] SET [ImageURL] = @thumbnailUrl WHERE [ImageURL] = @imageURL;";
+
+                    using (var sqlCommand = new SqlCommand(text, sqlConnection))
+                    {
+                        sqlCommand.Parameters.AddWithValue("@thumbnailUrl", thumbnailBlob.Uri.ToString());
+                        sqlCommand.Parameters.AddWithValue("@imageURL", imageBlob.Uri.ToString());
+
+                        await sqlCommand.ExecuteNonQueryAsync();
+                    }
+                }
+
+                log.Info($"C# Blob trigger function completed. Name:{name}");
+            }
+        }
+        private static void ConvertImageToThumbnail(
+            Stream input,
+            Stream output,
+            ImageFormat imageFormat,
+            TraceWriter log)
+        {
+            const int thumbnailsize = 150;
+
+            int width;
+            int height;
+            var originalImage = new Bitmap(input);
+
+            if (originalImage.Width > originalImage.Height)
+            {
+                width = thumbnailsize;
+                height = thumbnailsize * originalImage.Height / originalImage.Width;
+            }
+            else
+            {
+                height = thumbnailsize;
+                width = thumbnailsize * originalImage.Width / originalImage.Height;
+            }
+
+            log.Info($"ConvertImageToThumbnail {width}x{height}");
+
+            Bitmap thumbnailImage = null;
+
+            try
+            {
+                thumbnailImage = new Bitmap(width, height);
+
+                using (var graphics = Graphics.FromImage(thumbnailImage))
+                {
+                    graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                    graphics.DrawImage(originalImage, 0, 0, width, height);
+                }
+
+                thumbnailImage.Save(output, imageFormat);
+            }
+            finally
+            {
+                thumbnailImage?.Dispose();
+            }
+        }
+    }
+}

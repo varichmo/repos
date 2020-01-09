@@ -1,0 +1,35 @@
+﻿@using ContosoShuttle.Data.Models
+@{
+    ViewBag.Title = "Home Page";
+}
+
+<div class="container">
+    <div class="row home-intro-container">
+            <div class="col-md-6">
+                <img src="..\..\content\img\shuttle.jpg" alt="Contoso Shuttles" />
+            </div>
+            <div class="col-md-6">
+                <h1>Contoso Shuttle</h1>
+                <p>
+                    Contoso Shuttle is a sample application that demonstrates how to create a
+                    multi-tier ASP.NET application that runs in an Azure Cloud Service
+                    or Web Site
+                </p>
+            </div>
+        </div>
+    </div>
+<div class="category-section">
+    <div class="container">
+        <h2>Choose a destination</h2>
+        <div class="row category-container">
+            @foreach (var destination in ViewBag.Destinations) 
+            {
+                <div class="col-md-4 category">
+                    <a href="@Url.Action("Index", "Schedule", new {destination = (int) destination})">
+                        @destination
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</div>

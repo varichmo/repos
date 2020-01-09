@@ -1,0 +1,26 @@
+﻿@{
+    ViewBag.Title = "Errors";
+}
+
+<div class="container">
+    <h1 class="col-md-12">@ViewBag.Title</h1>
+</div>
+<div class="bottom-container">
+    <div class="container">
+        <h2>Trigger errors within your application:</h2>
+        <div class="form-horizontal">
+            <div class="form-row">
+                @if (!ViewBag.IsPegged)
+                {
+                    <p>Press the button to peg the web server's CPU to approximately @(ViewBag.CPULevel * 100)% for @ViewBag.PegTime.ToString() minutes</p>
+                    <input class="button" type="button" value="PEG CPU" onclick="location.href='@Url.Action("PegCpu", "Errors")'" />
+                }
+                else
+                {
+                    <p>The CPU is being stressed to approximately @(ViewBag.CPULevel * 100)% for @ViewBag.PegTime.ToString() minutes - you'll check the results later in the exercise. Continue with next steps</p>
+                    <input class="button" type="button" value="Cancel" onclick="location.href='@Url.Action("UnpegCpu", "Errors")'" />
+                }
+            </div>
+        </div>
+    </div>
+</div>

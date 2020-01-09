@@ -1,0 +1,53 @@
+﻿@using ContosoShuttle.Common
+@using ContosoShuttle.Data
+@using ContosoShuttle.Web.Helpers
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>@ViewBag.Title - Contoso Shuttle</title>
+        @Styles.Render("~/Content/css")
+        @Scripts.Render("~/bundles/modernizr")
+
+        @Scripts.Render("~/bundles/jquery")
+
+        <meta name="description" content="Contoso Ads" />
+    </head>
+    <body>
+    <div class="wrapper">
+        <div class="navbar navbar-inverse navbar-fixed-top">
+            <div class="container">
+                @*<div class="navbar-header">
+                    @*<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                </div>*@
+                <div>
+                    <ul class="nav navbar-nav">
+                       <li><a href="/">HOME</a></li>
+                        <li><a href="/Schedule">SCHEDULE</a></li>
+                        <li><a href="/Errors">ERRORS</a></li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+        <div class="render-container">
+            @RenderBody()
+        </div>
+        <div class="push"></div>
+    </div>
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; @DateTime.Now.Year Contoso Shuttle - Environment: @ConfigurationHelper.GetConfigValue("Environment") - HostName: @Dns.GetHostName()</p>
+        </div>
+    </footer>
+
+        @Scripts.Render("~/bundles/bootstrap")
+        @Scripts.Render("~/bundles/jqueryval")
+        @RenderSection("scripts", required: false)
+    </body>
+</html>
